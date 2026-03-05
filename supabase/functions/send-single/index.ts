@@ -1,122 +1,109 @@
-/**
- * Edge Function: send-single
- *
- * Sends a one-off email to an existing lead and logs the message.
- * Used from the lead detail view in the UI.
- *
- * ── Request ───────────────────────────────────────────────────
- * POST /functions/v1/send-single
- * Headers:
- *   x-app-password: <APP_PASSWORD>
- *   Content-Type:   application/json
- *
- * Body:
- * {
- *   leadId:      string,   // UUID of the lead
- *   subject:     string,
- *   body:        string,   // plain text
- *   senderEmail: string,
- *   senderName:  string,
- * }
- *
- * ── Response (success) ────────────────────────────────────────
- * {
- *   messageId:  string | null,   // SendGrid X-Message-Id
- *   loggedId:   string,           // messages.id in DB
- * }
- *
- * ── Response (failure) ────────────────────────────────────────
- * HTTP 4xx/5xx  { error: string }
- * OR HTTP 200   with status "failed" in DB log when SendGrid rejects
- */
+import { serve }        from 'https://deno.land/std@0.177.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-import { serve }          from 'https://deno.land/std@0.177.0/http/server.ts'
-import { preflight, json, error } from '../_shared/cors.ts'
-import { isAuthorised }   from '../_shared/auth.ts'
-import { getAdminClient } from '../_shared/db.ts'
-import { sendEmail }      from '../_shared/sendgrid.ts'
+// ── CORS ────────────────────────────────────────────────────────
+const CORS = {
+  'Access-Control-Allow-Origin':  '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-app-password',
+}
+const preflight = () => new Response(null, { status: 204, headers: CORS })
+const json  = (d: unknown, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { ...CORS, 'Content-Type': 'application/json' } })
+const error = (msg: string, s = 400) => json({ error: msg }, s)
 
-// ── Types ──────────────────────────────────────────────────────
-
-interface SendSingleBody {
-  leadId:      string
-  subject:     string
-  body:        string
-  senderEmail: string
-  senderName:  string
+// ── Auth ────────────────────────────────────────────────────────
+const isAuthorised = (req: Request) => {
+  const pw = Deno.env.get('APP_PASSWORD')
+  if (!pw) { console.error('APP_PASSWORD not set'); return false }
+  return req.headers.get('x-app-password') === pw
 }
 
-// ── Handler ────────────────────────────────────────────────────
+// ── DB ──────────────────────────────────────────────────────────
+const getDb = () => createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  { auth: { persistSession: false } },
+)
 
-serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') return preflight()
-  if (req.method !== 'POST')    return error('Method not allowed', 405)
-  if (!isAuthorised(req))       return error('Unauthorised', 401)
+// ── SendGrid ─────────────────────────────────────────────────────
+const SENDGRID_API = 'https://api.sendgrid.com/v3/mail/send'
 
-  // ── Parse & validate body ───────────────────────────────────
-  let body: SendSingleBody
+async function sendEmail(params: {
+  to: { email: string; name?: string }
+  from: { email: string; name?: string }
+  subject: string; text: string
+}) {
+  const apiKey = Deno.env.get('SENDGRID_API_KEY')
+  if (!apiKey) return { success: false, messageId: null, error: 'SENDGRID_API_KEY not set' }
+
+  let res: Response
   try {
-    body = await req.json()
-  } catch {
-    return error('Invalid JSON body')
+    res = await fetch(SENDGRID_API, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email: params.to.email, ...(params.to.name ? { name: params.to.name } : {}) }] }],
+        from: { email: params.from.email, ...(params.from.name ? { name: params.from.name } : {}) },
+        subject: params.subject,
+        content: [{ type: 'text/plain', value: params.text }],
+      }),
+    })
+  } catch (e) {
+    return { success: false, messageId: null, error: `Network error: ${(e as Error).message}` }
   }
 
-  const { leadId, subject, body: emailBody, senderEmail, senderName } = body
+  if (res.status === 202) return { success: true, messageId: res.headers.get('X-Message-Id') }
 
+  let errDetail = `HTTP ${res.status}`
+  try {
+    const b = await res.json() as { errors?: { message: string }[] }
+    if (b.errors?.length) errDetail = b.errors.map(e => e.message).join('; ')
+  } catch { errDetail = `HTTP ${res.status}: ${await res.text()}` }
+
+  return { success: false, messageId: null, error: errDetail }
+}
+
+// ── Handler ─────────────────────────────────────────────────────
+serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') return preflight()
+  if (req.method !== 'POST')   return error('Method not allowed', 405)
+  if (!isAuthorised(req))      return error('Unauthorised', 401)
+
+  let body: { leadId: string; subject: string; body: string; senderEmail: string; senderName: string }
+  try { body = await req.json() } catch { return error('Invalid JSON body') }
+
+  const { leadId, subject, body: emailBody, senderEmail, senderName } = body
   if (!leadId      || typeof leadId      !== 'string') return error('"leadId" is required')
   if (!subject     || typeof subject     !== 'string') return error('"subject" is required')
   if (!emailBody   || typeof emailBody   !== 'string') return error('"body" is required')
   if (!senderEmail || typeof senderEmail !== 'string') return error('"senderEmail" is required')
   if (!senderName  || typeof senderName  !== 'string') return error('"senderName" is required')
 
-  const db = getAdminClient()
+  const db = getDb()
 
-  // ── Fetch lead ──────────────────────────────────────────────
-  const { data: lead, error: leadErr } = await db
-    .from('leads')
-    .select('id, email, name')
-    .eq('id', leadId)
-    .single()
-
+  const { data: lead, error: leadErr } = await db.from('leads').select('id, email, name').eq('id', leadId).single()
   if (leadErr || !lead) return error('Lead not found', 404)
 
-  // ── Send via SendGrid ───────────────────────────────────────
   const result = await sendEmail({
-    to:      { email: lead.email, name: lead.name ?? undefined },
-    from:    { email: senderEmail, name: senderName },
-    subject,
-    text:    emailBody,
+    to:   { email: lead.email, name: lead.name ?? undefined },
+    from: { email: senderEmail, name: senderName },
+    subject, text: emailBody,
   })
 
-  // ── Log message regardless of outcome ──────────────────────
-  const { data: logged, error: logErr } = await db
-    .from('messages')
-    .insert({
-      lead_id:             leadId,
-      subject,
-      body:                emailBody,
-      sender_email:        senderEmail,
-      sender_name:         senderName,
-      sendgrid_message_id: result.messageId,
-      status:              result.success ? 'sent' : 'failed',
-      error_message:       result.error ?? null,
-      sent_at:             result.success ? new Date().toISOString() : null,
-    })
-    .select('id')
-    .single()
+  const { data: logged, error: logErr } = await db.from('messages').insert({
+    lead_id: leadId, subject, body: emailBody,
+    sender_email: senderEmail, sender_name: senderName,
+    sendgrid_message_id: result.messageId,
+    status:        result.success ? 'sent' : 'failed',
+    error_message: result.error ?? null,
+    sent_at:       result.success ? new Date().toISOString() : null,
+  }).select('id').single()
 
   if (logErr) {
-    // The email may have sent — surface this rather than silently failing
     console.error('Failed to log message:', logErr.message)
     return error(`Email ${result.success ? 'sent but' : 'failed and'} message log failed: ${logErr.message}`, 500)
   }
 
-  // ── Return ──────────────────────────────────────────────────
-  if (!result.success) {
-    // Return 200 with error detail so the caller can show the user
-    // what went wrong without treating it as a transport failure
-    return json({ success: false, error: result.error, loggedId: logged.id })
-  }
-
+  if (!result.success) return json({ success: false, error: result.error, loggedId: logged.id })
   return json({ success: true, messageId: result.messageId, loggedId: logged.id })
 })
