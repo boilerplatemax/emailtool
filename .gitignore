@@ -1,15 +1,22 @@
-# Dependencies
+# ── Dependencies ───────────────────────────────────────────────
 node_modules/
 
-# Build output
+# ── Build output ───────────────────────────────────────────────
 dist/
+dist-ssr/
 
-# Local env files
+# ── Environment / secrets ──────────────────────────────────────
+# .env.example is safe to commit (no real secrets).
+# Everything else must stay local.
 .env
 .env.local
 .env.*.local
 
-# Editor
+# Supabase local dev files (contain service-role key)
+supabase/.branches/
+supabase/.temp/
+
+# ── Editor ─────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.suo
@@ -18,12 +25,13 @@ dist/
 *.sln
 *.sw?
 
-# OS
+# ── OS ─────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 
-# Logs
+# ── Logs ───────────────────────────────────────────────────────
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+*.log
