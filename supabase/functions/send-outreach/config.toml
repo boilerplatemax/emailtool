@@ -1,0 +1,2 @@
+[functions.send-outreach]
+verify_jwt = false

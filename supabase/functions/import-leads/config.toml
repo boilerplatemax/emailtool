@@ -1,0 +1,2 @@
+[functions.import-leads]
+verify_jwt = false
