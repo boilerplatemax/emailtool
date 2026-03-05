@@ -191,6 +191,7 @@ select
 create or replace view vw_recent_activity as
 select
   m.id,
+  m.lead_id,
   m.sent_at,
   m.status,
   m.subject,
