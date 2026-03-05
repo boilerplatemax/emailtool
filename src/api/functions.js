@@ -9,8 +9,9 @@
  * this module so the auth header is applied consistently.
  */
 
-const BASE_URL    = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`
+const BASE_URL     = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`
 const APP_PASSWORD = import.meta.env.VITE_APP_PASSWORD
+const ANON_KEY     = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 // ── Internal helper ────────────────────────────────────────────
 
@@ -23,6 +24,7 @@ async function callFunction(name, payload) {
     method:  'POST',
     headers: {
       'Content-Type':   'application/json',
+      'Authorization':  `Bearer ${ANON_KEY}`,
       'x-app-password': APP_PASSWORD,
     },
     body: JSON.stringify(payload),
