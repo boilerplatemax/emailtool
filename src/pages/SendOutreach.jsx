@@ -7,7 +7,7 @@ import Spinner from '../components/Spinner'
 import { useToast } from '../context/ToastContext'
 import { sendOutreach } from '../api/functions'
 
-const REQUIRED_COLS = ['union', 'local', 'email', 'subject', 'body']
+const REQUIRED_COLS = ['union', 'local', 'email', 'province', 'employer / sector', 'subject', 'body']
 const ALL_COLS      = [...REQUIRED_COLS, 'name']
 
 const SENDER_EMAIL  = import.meta.env.VITE_SENDER_EMAIL ?? ''
@@ -19,12 +19,14 @@ function normaliseRow(r) {
     out[k.trim().toLowerCase()] = typeof v === 'string' ? v.trim() : v
   }
   return {
-    union_name: out.union   || '',
-    local:      out.local   || '',
-    email:      (out.email  || '').toLowerCase(),
-    subject:    out.subject || '',
-    body:       out.body    || '',
-    name:       out.name    || null,
+    union_name:      out.union              || '',
+    local:           out.local              || '',
+    email:           (out.email             || '').toLowerCase(),
+    province:        out.province           || '',
+    employer_sector: out['employer / sector'] || '',
+    subject:         out.subject            || '',
+    body:            out.body               || '',
+    name:            out.name               || null,
   }
 }
 
@@ -106,7 +108,7 @@ export default function SendOutreach() {
 
     const rows = parsed.data
       .map(normaliseRow)
-      .filter(r => r.union_name && r.local && r.email && r.subject && r.body)
+      .filter(r => r.union_name && r.local && r.email && r.province && r.employer_sector && r.subject && r.body)
 
     setParsedRows(rows)
   }
@@ -164,7 +166,7 @@ export default function SendOutreach() {
             <div>
               <p className="text-sm font-medium text-indigo-800">Download template</p>
               <p className="text-xs text-indigo-500 mt-0.5">
-                Required: union, local, email, subject, body · Optional: name
+                Required: union, local, email, province, employer / sector, subject, body · Optional: name
               </p>
             </div>
             <a
