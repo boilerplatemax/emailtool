@@ -12,8 +12,8 @@
 const LEADS_REQUIRED    = ['union', 'local', 'email']
 const LEADS_OPTIONAL    = ['phone', 'address', 'province', 'name']
 
-const OUTREACH_REQUIRED = ['union', 'local', 'email', 'province', 'employer / sector', 'subject', 'body']
-const OUTREACH_OPTIONAL = ['name']
+const OUTREACH_REQUIRED = ['union', 'local', 'email', 'subject', 'body']
+const OUTREACH_OPTIONAL = ['province', 'employer / sector', 'name']
 
 // ── Helpers ───────────────────────────────────────────────────
 
@@ -94,11 +94,11 @@ export function parseOutreachCsv(text) {
     union_name:      r.union,
     local:           r.local,
     email:           r.email,
-    province:        r.province,
-    employer_sector: r['employer / sector'],
+    province:        r.province             || null,
+    employer_sector: r['employer / sector'] || null,
     subject:         r.subject,
     body:            r.body,
-    name:            r.name || null,
+    name:            r.name                 || null,
   }))
   return { rows: normalised, errors }
 }

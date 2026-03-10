@@ -66,7 +66,7 @@ async function sendEmail(params: {
 // ── Types ───────────────────────────────────────────────────────
 interface OutreachRow {
   union_name: string; local: string; email: string
-  province: string; employer_sector: string
+  province?: string|null; employer_sector?: string|null
   subject: string; body: string; name?: string|null
 }
 interface OutreachBody {
@@ -77,18 +77,18 @@ interface OutreachBody {
 function validateRow(row: unknown, i: number): { ok: true; row: OutreachRow } | { ok: false; reason: string } {
   if (!row || typeof row !== 'object') return { ok: false, reason: `Row ${i+1}: not an object` }
   const r = row as Record<string,unknown>
-  for (const f of ['union_name','local','email','province','employer_sector','subject','body']) {
+  for (const f of ['union_name','local','email','subject','body']) {
     if (!r[f] || typeof r[f] !== 'string' || !(r[f] as string).trim())
       return { ok: false, reason: `Row ${i+1}: missing required field "${f}"` }
   }
   return { ok: true, row: {
-    union_name:      (r.union_name      as string).trim(),
-    local:           (r.local           as string).trim(),
-    email:           (r.email           as string).trim().toLowerCase(),
-    province:        (r.province        as string).trim(),
-    employer_sector: (r.employer_sector as string).trim(),
-    subject:         (r.subject         as string).trim(),
-    body:            (r.body            as string).trim(),
+    union_name:      (r.union_name as string).trim(),
+    local:           (r.local      as string).trim(),
+    email:           (r.email      as string).trim().toLowerCase(),
+    province:        typeof r.province        === 'string' ? r.province.trim()        || null : null,
+    employer_sector: typeof r.employer_sector === 'string' ? r.employer_sector.trim() || null : null,
+    subject:         (r.subject    as string).trim(),
+    body:            (r.body       as string).trim(),
     name:            typeof r.name === 'string' ? r.name.trim() || null : null,
   }}
 }
