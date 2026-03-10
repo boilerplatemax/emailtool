@@ -119,6 +119,7 @@ serve(async (req: Request) => {
   if (!Array.isArray(rows) || rows.length === 0)        return error('"rows" must be a non-empty array')
 
   const db = getDb()
+  const delayMs = Math.max(0, parseInt(Deno.env.get('EMAIL_DELAY_MS') ?? '1000', 10))
   const stats = { sent: 0, failed: 0, leadsCreated: 0, errors: [] as { row: OutreachRow; reason: string }[] }
 
   for (let i = 0; i < rows.length; i++) {
@@ -150,6 +151,10 @@ serve(async (req: Request) => {
       }
       stats.failed++
       stats.errors.push({ row, reason: (err as Error).message })
+    }
+
+    if (delayMs > 0 && i < rows.length - 1) {
+      await new Promise(r => setTimeout(r, delayMs))
     }
   }
 
