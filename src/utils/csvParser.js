@@ -12,7 +12,7 @@
 const LEADS_REQUIRED    = ['union', 'local', 'email']
 const LEADS_OPTIONAL    = ['phone', 'address', 'province', 'name']
 
-const OUTREACH_REQUIRED = ['union', 'local', 'email', 'subject', 'body']
+const OUTREACH_REQUIRED = ['union', 'local', 'email', 'province', 'employer / sector', 'subject', 'body']
 const OUTREACH_OPTIONAL = ['name']
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -91,12 +91,14 @@ export function parseOutreachCsv(text) {
   }
   const { valid, errors } = validateRows(rows, OUTREACH_REQUIRED, OUTREACH_OPTIONAL)
   const normalised = valid.map(r => ({
-    union_name: r.union,
-    local:      r.local,
-    email:      r.email,
-    subject:    r.subject,
-    body:       r.body,
-    name:       r.name || null,
+    union_name:      r.union,
+    local:           r.local,
+    email:           r.email,
+    province:        r.province,
+    employer_sector: r['employer / sector'],
+    subject:         r.subject,
+    body:            r.body,
+    name:            r.name || null,
   }))
   return { rows: normalised, errors }
 }
