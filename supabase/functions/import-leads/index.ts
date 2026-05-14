@@ -27,8 +27,10 @@ const getDb = () => createClient(
 
 // ── Types ───────────────────────────────────────────────────────
 interface LeadRow {
-  union_name: string; local: string; email: string
+  union_name: string; local: string
+  email?: string|null
   phone?: string|null; address?: string|null; province?: string|null; name?: string|null
+  website?: string|null
 }
 interface ImportBody {
   filename: string; duplicateBehavior?: 'ignore'|'replace'; rows: LeadRow[]
@@ -38,18 +40,24 @@ interface ImportBody {
 function validateRow(row: unknown, i: number): { ok: true; row: LeadRow } | { ok: false; reason: string } {
   if (!row || typeof row !== 'object') return { ok: false, reason: `Row ${i+1}: not an object` }
   const r = row as Record<string,unknown>
-  for (const f of ['union_name','local','email']) {
+  for (const f of ['union_name','local']) {
     if (!r[f] || typeof r[f] !== 'string' || !(r[f] as string).trim())
       return { ok: false, reason: `Row ${i+1}: missing required field "${f}"` }
+  }
+  const email   = typeof r.email   === 'string' ? r.email.trim().toLowerCase() : ''
+  const phone   = typeof r.phone   === 'string' ? r.phone.trim()               : ''
+  if (!email && !phone) {
+    return { ok: false, reason: `Row ${i+1}: must have at least one of "email" or "phone"` }
   }
   return { ok: true, row: {
     union_name: (r.union_name as string).trim(),
     local:      (r.local      as string).trim(),
-    email:      (r.email      as string).trim().toLowerCase(),
-    phone:      typeof r.phone    === 'string' ? r.phone.trim()    || null : null,
+    email:      email   || null,
+    phone:      phone   || null,
     address:    typeof r.address  === 'string' ? r.address.trim()  || null : null,
     province:   typeof r.province === 'string' ? r.province.trim() || null : null,
     name:       typeof r.name     === 'string' ? r.name.trim()     || null : null,
+    website:    typeof r.website  === 'string' ? r.website.trim()  || null : null,
   }}
 }
 
@@ -79,7 +87,7 @@ serve(async (req: Request) => {
       if (lookupErr) throw new Error(lookupErr.message)
       if (existing) {
         if (duplicateBehavior === 'ignore') { stats.skipped++; continue }
-        const { error: updateErr } = await db.from('leads').update({ email: row.email, phone: row.phone, address: row.address, province: row.province, name: row.name }).eq('id', existing.id)
+        const { error: updateErr } = await db.from('leads').update({ email: row.email, phone: row.phone, address: row.address, province: row.province, name: row.name, website: row.website }).eq('id', existing.id)
         if (updateErr) throw new Error(updateErr.message)
         stats.updated++
       } else {

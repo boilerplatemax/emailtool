@@ -149,7 +149,7 @@ export default function SendOutreach() {
         subtitle="Upload a CSV to send a batch of personalised emails"
       />
 
-      <div className="flex-1 overflow-y-auto p-8">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-8">
         <div className="max-w-3xl space-y-6">
 
           {/* Warning banner */}
