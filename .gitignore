@@ -35,3 +35,8 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 *.log
+
+# ── Local data files ───────────────────────────────────────────
+# Generated or imported CSVs live at the repo root by convention;
+# they contain lead data and should never be committed.
+/*.csv
