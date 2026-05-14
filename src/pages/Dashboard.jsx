@@ -35,7 +35,7 @@ export default function Dashboard() {
     <div className="flex flex-col h-full">
       <PageHeader title="Dashboard" subtitle="Overview of your outreach activity" />
 
-      <div className="flex-1 overflow-y-auto p-8">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-8">
         {loading ? (
           <div className="flex items-center justify-center h-40">
             <Spinner size={24} />

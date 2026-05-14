@@ -7,8 +7,8 @@ import Spinner from '../components/Spinner'
 import { useToast } from '../context/ToastContext'
 import { importLeads } from '../api/functions'
 
-const REQUIRED_COLS = ['union', 'local', 'email']
-const OPTIONAL_COLS = ['phone', 'address', 'province', 'name']
+const REQUIRED_COLS = ['union', 'local']
+const OPTIONAL_COLS = ['email', 'phone', 'address', 'province', 'name', 'website']
 const ALL_COLS      = [...REQUIRED_COLS, ...OPTIONAL_COLS]
 
 function normaliseRow(r) {
@@ -20,11 +20,12 @@ function normaliseRow(r) {
   return {
     union_name: out.union      || '',
     local:      out.local      || '',
-    email:      (out.email     || '').toLowerCase(),
+    email:      (out.email     || '').toLowerCase() || null,
     phone:      out.phone      || null,
     address:    out.address    || null,
     province:   out.province   || null,
     name:       out.name       || null,
+    website:    out.website    || null,
   }
 }
 
@@ -99,7 +100,7 @@ export default function ImportLeads() {
       return
     }
 
-    const rows = parsed.data.map(normaliseRow).filter(r => r.union_name && r.local && r.email)
+    const rows = parsed.data.map(normaliseRow).filter(r => r.union_name && r.local && (r.email || r.phone))
     setParsedRows(rows)
   }
 
@@ -138,7 +139,7 @@ export default function ImportLeads() {
         subtitle="Upload a CSV file to add or update leads"
       />
 
-      <div className="flex-1 overflow-y-auto p-8">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-8">
         <div className="max-w-3xl space-y-6">
 
           {/* Template download */}
@@ -146,7 +147,7 @@ export default function ImportLeads() {
             <div>
               <p className="text-sm font-medium text-indigo-800">Need a template?</p>
               <p className="text-xs text-indigo-500 mt-0.5">
-                Required: union, local, email · Optional: phone, address, province, name
+                Required: union, local (and at least one of email/phone) · Optional: email, phone, address, province, name, website
               </p>
             </div>
             <a
@@ -229,7 +230,7 @@ export default function ImportLeads() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-slate-100">
-                        {['Union', 'Local', 'Email', 'Name', 'Province'].map(h => (
+                        {['Union', 'Local', 'Email', 'Phone', 'Website', 'Province'].map(h => (
                           <th key={h} className="px-4 py-2 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">
                             {h}
                           </th>
@@ -241,8 +242,9 @@ export default function ImportLeads() {
                         <tr key={i} className="hover:bg-slate-50">
                           <td className="px-4 py-2.5 font-medium text-slate-800">{r.union_name}</td>
                           <td className="px-4 py-2.5 text-slate-600">{r.local}</td>
-                          <td className="px-4 py-2.5 text-slate-600">{r.email}</td>
-                          <td className="px-4 py-2.5 text-slate-400">{r.name ?? '—'}</td>
+                          <td className="px-4 py-2.5 text-slate-600">{r.email ?? '—'}</td>
+                          <td className="px-4 py-2.5 text-slate-600">{r.phone ?? '—'}</td>
+                          <td className="px-4 py-2.5 text-slate-400 max-w-[180px] truncate">{r.website ?? '—'}</td>
                           <td className="px-4 py-2.5 text-slate-400">{r.province ?? '—'}</td>
                         </tr>
                       ))}

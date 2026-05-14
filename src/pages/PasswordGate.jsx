@@ -40,7 +40,7 @@ export default function PasswordGate({ onSuccess }) {
             <div className="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center mb-4 shadow-lg shadow-indigo-200">
               <Zap size={22} className="text-white" fill="white" />
             </div>
-            <h1 className="text-xl font-bold text-slate-900">EmailTool</h1>
+            <h1 className="text-xl font-bold text-slate-900">OutreachTool</h1>
             <p className="text-sm text-slate-500 mt-1">Internal access only</p>
           </div>
 
