@@ -5,9 +5,8 @@ import Spinner from '../components/Spinner'
 import { useToast } from '../context/ToastContext'
 import { getLeads } from '../api/leads'
 import { sendSingleEmail } from '../api/functions'
-
-const SENDER_EMAIL = import.meta.env.VITE_SENDER_EMAIL ?? ''
-const SENDER_NAME  = import.meta.env.VITE_SENDER_NAME  ?? ''
+import SenderSelect from '../components/SenderSelect'
+import { DEFAULT_SENDER } from '../lib/senders'
 
 export default function ManualEmail() {
   const { addToast } = useToast()
@@ -22,8 +21,7 @@ export default function ManualEmail() {
   const dropRef     = useRef(null)
 
   // Form state
-  const [senderName,  setSenderName]  = useState(SENDER_NAME)
-  const [senderEmail, setSenderEmail] = useState(SENDER_EMAIL)
+  const [sender,      setSender]      = useState(DEFAULT_SENDER)
   const [subject,     setSubject]     = useState('')
   const [body,        setBody]        = useState('')
   const [sending,     setSending]     = useState(false)
@@ -71,15 +69,15 @@ export default function ManualEmail() {
 
   async function handleSend(e) {
     e.preventDefault()
-    if (!lead || !subject.trim() || !body.trim() || !senderEmail.trim()) return
+    if (!lead || !subject.trim() || !body.trim() || !sender.email) return
     setSending(true)
     try {
       const result = await sendSingleEmail({
         leadId:      lead.id,
         subject:     subject.trim(),
         body:        body.trim(),
-        senderEmail: senderEmail.trim(),
-        senderName:  senderName.trim(),
+        senderEmail: sender.email,
+        senderName:  sender.name,
       })
       if (result.success) {
         setSent(true)
@@ -200,31 +198,7 @@ export default function ManualEmail() {
 
               <form onSubmit={handleSend} className="space-y-4">
                 {/* Sender */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1.5">Your Name</label>
-                    <input
-                      type="text"
-                      value={senderName}
-                      onChange={(e) => setSenderName(e.target.value)}
-                      placeholder="Jane Smith"
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                      Your Email <span className="text-red-400">*</span>
-                    </label>
-                    <input
-                      type="email"
-                      value={senderEmail}
-                      onChange={(e) => setSenderEmail(e.target.value)}
-                      placeholder="jane@example.com"
-                      required
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
+                <SenderSelect value={sender} onChange={setSender} required label="From" />
 
                 {/* To (readonly) */}
                 <div>
@@ -269,7 +243,7 @@ export default function ManualEmail() {
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    disabled={sending || !subject.trim() || !body.trim() || !senderEmail.trim()}
+                    disabled={sending || !subject.trim() || !body.trim() || !sender.email}
                     className="flex items-center gap-2 bg-indigo-600 text-white font-medium text-sm px-6 py-2.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
                   >
                     {sending ? <Spinner size={15} className="text-white" /> : <Send size={15} />}
