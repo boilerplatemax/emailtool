@@ -6,12 +6,11 @@ import CsvDropzone from '../components/CsvDropzone'
 import Spinner from '../components/Spinner'
 import { useToast } from '../context/ToastContext'
 import { sendOutreach } from '../api/functions'
+import SenderSelect from '../components/SenderSelect'
+import { DEFAULT_SENDER } from '../lib/senders'
 
 const REQUIRED_COLS = ['union', 'local', 'email', 'province', 'employer / sector', 'subject', 'body']
 const ALL_COLS      = [...REQUIRED_COLS, 'name']
-
-const SENDER_EMAIL  = import.meta.env.VITE_SENDER_EMAIL ?? ''
-const SENDER_NAME   = import.meta.env.VITE_SENDER_NAME  ?? ''
 
 function normaliseRow(r) {
   const out = {}
@@ -85,8 +84,7 @@ export default function SendOutreach() {
   const [file,        setFile]        = useState(null)
   const [parsedRows,  setParsedRows]  = useState([])
   const [parseErrors, setParseErrors] = useState([])
-  const [senderName,  setSenderName]  = useState(SENDER_NAME)
-  const [senderEmail, setSenderEmail] = useState(SENDER_EMAIL)
+  const [sender,      setSender]      = useState(DEFAULT_SENDER)
   const [loading,     setLoading]     = useState(false)
   const [result,      setResult]      = useState(null)
 
@@ -114,15 +112,15 @@ export default function SendOutreach() {
   }
 
   async function handleSend() {
-    if (!parsedRows.length || !senderEmail.trim()) return
+    if (!parsedRows.length || !sender.email) return
     setLoading(true)
     setResult(null)
     try {
       const res = await sendOutreach({
         filename:    file.name,
         rows:        parsedRows,
-        senderEmail: senderEmail.trim(),
-        senderName:  senderName.trim(),
+        senderEmail: sender.email,
+        senderName:  sender.name,
       })
       setResult(res)
       addToast(`Done — ${res.sent} sent, ${res.failed} failed.`, res.failed ? 'warning' : 'success')
@@ -194,32 +192,9 @@ export default function SendOutreach() {
               {/* Step 2 — Sender */}
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
                 <h2 className="text-sm font-semibold text-slate-700">2 · Sender Details</h2>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1.5">Sender Name</label>
-                    <input
-                      type="text"
-                      value={senderName}
-                      onChange={(e) => setSenderName(e.target.value)}
-                      placeholder="Jane Smith"
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                      Sender Email <span className="text-red-400">*</span>
-                    </label>
-                    <input
-                      type="email"
-                      value={senderEmail}
-                      onChange={(e) => setSenderEmail(e.target.value)}
-                      placeholder="jane@example.com"
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
+                <SenderSelect value={sender} onChange={setSender} required label="From" />
                 <p className="text-xs text-slate-400">
-                  The sender email must be verified in your SendGrid account.
+                  The sender email must be a verified sender in your SendGrid account.
                 </p>
               </div>
 
@@ -264,7 +239,7 @@ export default function SendOutreach() {
                 </button>
                 <button
                   onClick={handleSend}
-                  disabled={loading || !senderEmail.trim()}
+                  disabled={loading || !sender.email}
                   className="flex items-center gap-2 bg-indigo-600 text-white font-medium text-sm px-6 py-2.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {loading ? <Spinner size={15} className="text-white" /> : <Send size={15} />}
