@@ -71,6 +71,7 @@ interface OutreachRow {
 }
 interface OutreachBody {
   filename: string; senderEmail: string; senderName: string; rows: OutreachRow[]
+  staggerMinutes?: number
 }
 
 // ── Validation ──────────────────────────────────────────────────
@@ -113,7 +114,7 @@ serve(async (req: Request) => {
   let body: OutreachBody
   try { body = await req.json() } catch { return error('Invalid JSON body') }
 
-  const { filename, senderEmail, senderName, rows } = body
+  const { filename, senderEmail, senderName, rows, staggerMinutes } = body
   if (!filename    || typeof filename    !== 'string') return error('"filename" is required')
   if (!senderEmail || typeof senderEmail !== 'string') return error('"senderEmail" is required')
   if (!senderName  || typeof senderName  !== 'string') return error('"senderName" is required')
@@ -122,7 +123,14 @@ serve(async (req: Request) => {
   const db = getDb()
   const stats = { sent: 0, failed: 0, leadsCreated: 0, errors: [] as { row: OutreachRow; reason: string }[] }
 
+  const staggerMs = (typeof staggerMinutes === 'number' && staggerMinutes > 0)
+    ? staggerMinutes * 60_000
+    : 0
+
   for (let i = 0; i < rows.length; i++) {
+    if (i > 0 && staggerMs > 0) {
+      await new Promise(r => setTimeout(r, Math.random() * staggerMs))
+    }
     const v = validateRow(rows[i], i)
     if (!v.ok) { stats.failed++; stats.errors.push({ row: rows[i] as OutreachRow, reason: v.reason }); continue }
     const row = v.row

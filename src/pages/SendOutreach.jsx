@@ -87,6 +87,8 @@ export default function SendOutreach() {
   const [sender,      setSender]      = useState(DEFAULT_SENDER)
   const [loading,     setLoading]     = useState(false)
   const [result,      setResult]      = useState(null)
+  const [stagger,     setStagger]     = useState(false)
+  const [staggerMins, setStaggerMins] = useState(2)
 
   async function handleFile(f) {
     setFile(f)
@@ -117,10 +119,11 @@ export default function SendOutreach() {
     setResult(null)
     try {
       const res = await sendOutreach({
-        filename:    file.name,
-        rows:        parsedRows,
-        senderEmail: sender.email,
-        senderName:  sender.name,
+        filename:       file.name,
+        rows:           parsedRows,
+        senderEmail:    sender.email,
+        senderName:     sender.name,
+        staggerMinutes: stagger ? Math.max(0.1, Number(staggerMins)) : undefined,
       })
       setResult(res)
       addToast(`Done — ${res.sent} sent, ${res.failed} failed.`, res.failed ? 'warning' : 'success')
@@ -229,7 +232,43 @@ export default function SendOutreach() {
                 </div>
               </div>
 
-              {/* Step 4 — Send */}
+              {/* Step 4 — Stagger */}
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+                <h2 className="text-sm font-semibold text-slate-700">4 · Stagger Sending</h2>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-slate-700">Randomise send intervals</p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Adds a random delay (0 – X min) between each email to avoid bulk-send patterns
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setStagger(s => !s)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${stagger ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${stagger ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+                {stagger && (
+                  <div className="flex items-center gap-3">
+                    <label className="text-xs text-slate-600 shrink-0">Max interval (minutes)</label>
+                    <input
+                      type="number"
+                      min="0.1"
+                      step="0.5"
+                      value={staggerMins}
+                      onChange={e => setStaggerMins(e.target.value)}
+                      className="w-24 border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    />
+                    <span className="text-xs text-slate-400">
+                      Est. total time: ~{Math.round(parsedRows.length * (staggerMins / 2))} min
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Step 5 — Send */}
               <div className="flex items-center justify-between">
                 <button
                   onClick={reset}
