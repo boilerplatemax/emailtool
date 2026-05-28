@@ -66,8 +66,8 @@ async function sendEmail(params: {
 // ── Types ───────────────────────────────────────────────────────
 interface OutreachRow {
   union_name: string; local: string; email: string
-  province: string; employer_sector: string
-  subject: string; body: string; name?: string|null
+  province: string; first_name: string; last_name: string
+  subject: string; body: string
 }
 interface OutreachBody {
   filename: string; senderEmail: string; senderName: string; rows: OutreachRow[]
@@ -77,19 +77,19 @@ interface OutreachBody {
 function validateRow(row: unknown, i: number): { ok: true; row: OutreachRow } | { ok: false; reason: string } {
   if (!row || typeof row !== 'object') return { ok: false, reason: `Row ${i+1}: not an object` }
   const r = row as Record<string,unknown>
-  for (const f of ['union_name','local','email','province','employer_sector','subject','body']) {
+  for (const f of ['union_name','local','email','province','first_name','last_name','subject','body']) {
     if (!r[f] || typeof r[f] !== 'string' || !(r[f] as string).trim())
       return { ok: false, reason: `Row ${i+1}: missing required field "${f}"` }
   }
   return { ok: true, row: {
-    union_name:      (r.union_name      as string).trim(),
-    local:           (r.local           as string).trim(),
-    email:           (r.email           as string).trim().toLowerCase(),
-    province:        (r.province        as string).trim(),
-    employer_sector: (r.employer_sector as string).trim(),
-    subject:         (r.subject         as string).trim(),
-    body:            (r.body            as string).trim(),
-    name:            typeof r.name === 'string' ? r.name.trim() || null : null,
+    union_name: (r.union_name  as string).trim(),
+    local:      (r.local       as string).trim(),
+    email:      (r.email       as string).trim().toLowerCase(),
+    province:   (r.province    as string).trim(),
+    first_name: (r.first_name  as string).trim(),
+    last_name:  (r.last_name   as string).trim(),
+    subject:    (r.subject     as string).trim(),
+    body:       (r.body        as string).trim(),
   }}
 }
 
@@ -98,7 +98,8 @@ async function resolveOrCreateLead(db: ReturnType<typeof getDb>, row: OutreachRo
   const { data: existing, error: e } = await db.from('leads').select('id').eq('union_name', row.union_name).eq('local', row.local).maybeSingle()
   if (e) throw new Error(e.message)
   if (existing) return { leadId: existing.id, created: false }
-  const { data: newLead, error: ie } = await db.from('leads').insert({ union_name: row.union_name, local: row.local, email: row.email, name: row.name ?? null }).select('id').single()
+  const fullName = `${row.first_name} ${row.last_name}`.trim()
+  const { data: newLead, error: ie } = await db.from('leads').insert({ union_name: row.union_name, local: row.local, email: row.email, name: fullName || null }).select('id').single()
   if (ie || !newLead) throw new Error(ie?.message ?? 'Failed to create lead')
   return { leadId: newLead.id, created: true }
 }
@@ -131,7 +132,8 @@ serve(async (req: Request) => {
       leadId = resolved.leadId
       if (resolved.created) stats.leadsCreated++
 
-      const result = await sendEmail({ to: { email: row.email, name: row.name ?? undefined }, from: { email: senderEmail, name: senderName }, subject: row.subject, text: row.body })
+      const recipientName = `${row.first_name} ${row.last_name}`.trim()
+      const result = await sendEmail({ to: { email: row.email, name: recipientName || undefined }, from: { email: senderEmail, name: senderName }, subject: row.subject, text: row.body })
 
       await db.from('messages').insert({
         lead_id: leadId, subject: row.subject, body: row.body,
