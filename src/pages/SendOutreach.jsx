@@ -9,8 +9,9 @@ import { sendOutreach } from '../api/functions'
 import SenderSelect from '../components/SenderSelect'
 import { DEFAULT_SENDER } from '../lib/senders'
 
-const REQUIRED_COLS = ['union', 'local', 'email', 'province', 'first name', 'last name', 'subject', 'body']
-const ALL_COLS      = REQUIRED_COLS
+const REQUIRED_COLS = ['union', 'local', 'email', 'province', 'subject', 'body']
+const OPTIONAL_COLS = ['first name', 'last name']
+const ALL_COLS      = [...REQUIRED_COLS, ...OPTIONAL_COLS]
 
 function normaliseRow(r) {
   const out = {}
@@ -108,7 +109,7 @@ export default function SendOutreach() {
 
     const rows = parsed.data
       .map(normaliseRow)
-      .filter(r => r.union_name && r.local && r.email && r.province && r.first_name && r.last_name && r.subject && r.body)
+      .filter(r => r.union_name && r.local && r.email && r.province && r.subject && r.body)
 
     setParsedRows(rows)
   }
@@ -167,7 +168,7 @@ export default function SendOutreach() {
             <div>
               <p className="text-sm font-medium text-indigo-800">Download template</p>
               <p className="text-xs text-indigo-500 mt-0.5">
-                Required: union, local, email, province, first name, last name, subject, body
+                Required: union, local, email, province, subject, body · Optional: first name, last name
               </p>
             </div>
             <a
