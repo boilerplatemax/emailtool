@@ -9,8 +9,8 @@ import { sendOutreach } from '../api/functions'
 import SenderSelect from '../components/SenderSelect'
 import { DEFAULT_SENDER } from '../lib/senders'
 
-const REQUIRED_COLS = ['union', 'local', 'email', 'province', 'employer / sector', 'subject', 'body']
-const ALL_COLS      = [...REQUIRED_COLS, 'name']
+const REQUIRED_COLS = ['union', 'local', 'email', 'province', 'first name', 'last name', 'subject', 'body']
+const ALL_COLS      = REQUIRED_COLS
 
 function normaliseRow(r) {
   const out = {}
@@ -18,14 +18,14 @@ function normaliseRow(r) {
     out[k.trim().toLowerCase()] = typeof v === 'string' ? v.trim() : v
   }
   return {
-    union_name:      out.union              || '',
-    local:           out.local              || '',
-    email:           (out.email             || '').toLowerCase(),
-    province:        out.province           || '',
-    employer_sector: out['employer / sector'] || '',
-    subject:         out.subject            || '',
-    body:            out.body               || '',
-    name:            out.name               || null,
+    union_name: out.union              || '',
+    local:      out.local              || '',
+    email:      (out.email             || '').toLowerCase(),
+    province:   out.province           || '',
+    first_name: out['first name']      || '',
+    last_name:  out['last name']       || '',
+    subject:    out.subject            || '',
+    body:       out.body               || '',
   }
 }
 
@@ -106,7 +106,7 @@ export default function SendOutreach() {
 
     const rows = parsed.data
       .map(normaliseRow)
-      .filter(r => r.union_name && r.local && r.email && r.province && r.employer_sector && r.subject && r.body)
+      .filter(r => r.union_name && r.local && r.email && r.province && r.first_name && r.last_name && r.subject && r.body)
 
     setParsedRows(rows)
   }
@@ -164,7 +164,7 @@ export default function SendOutreach() {
             <div>
               <p className="text-sm font-medium text-indigo-800">Download template</p>
               <p className="text-xs text-indigo-500 mt-0.5">
-                Required: union, local, email, province, employer / sector, subject, body · Optional: name
+                Required: union, local, email, province, first name, last name, subject, body
               </p>
             </div>
             <a
@@ -212,11 +212,11 @@ export default function SendOutreach() {
                       <div className="flex items-center gap-3 mb-1.5">
                         <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
                           <span className="text-xs font-semibold text-indigo-700">
-                            {(r.name || r.email)[0].toUpperCase()}
+                            {(r.first_name || r.email)[0].toUpperCase()}
                           </span>
                         </div>
                         <div>
-                          <span className="text-sm font-medium text-slate-800">{r.name ?? r.email}</span>
+                          <span className="text-sm font-medium text-slate-800">{r.first_name ? `${r.first_name} ${r.last_name}` : r.email}</span>
                           <span className="text-xs text-slate-400 ml-2">
                             {r.union_name} · {r.local}
                           </span>
