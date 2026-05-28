@@ -78,7 +78,7 @@ interface OutreachBody {
 function validateRow(row: unknown, i: number): { ok: true; row: OutreachRow } | { ok: false; reason: string } {
   if (!row || typeof row !== 'object') return { ok: false, reason: `Row ${i+1}: not an object` }
   const r = row as Record<string,unknown>
-  for (const f of ['union_name','local','email','province','first_name','last_name','subject','body']) {
+  for (const f of ['union_name','local','email','province','subject','body']) {
     if (!r[f] || typeof r[f] !== 'string' || !(r[f] as string).trim())
       return { ok: false, reason: `Row ${i+1}: missing required field "${f}"` }
   }
