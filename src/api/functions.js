@@ -69,15 +69,16 @@ export async function importLeads({ filename, rows, duplicateBehavior = 'ignore'
  * and logged as a message on the resolved lead.
  *
  * @param {{
- *   filename:    string,
- *   rows:        object[],
- *   senderEmail: string,
- *   senderName:  string,
+ *   filename:        string,
+ *   rows:            object[],
+ *   senderEmail:     string,
+ *   senderName:      string,
+ *   staggerMinutes?: number,
  * }} params
  * @returns {Promise<{ sent: number, failed: number, leadsCreated: number, errors: object[] }>}
  */
-export async function sendOutreach({ filename, rows, senderEmail, senderName }) {
-  return callFunction('send-outreach', { filename, rows, senderEmail, senderName })
+export async function sendOutreach({ filename, rows, senderEmail, senderName, staggerMinutes }) {
+  return callFunction('send-outreach', { filename, rows, senderEmail, senderName, staggerMinutes })
 }
 
 // ── Single email ───────────────────────────────────────────────
