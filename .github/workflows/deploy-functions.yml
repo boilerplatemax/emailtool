@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - claude/react-tailwind-vite-scaffold-9C5tE
     paths:
       - 'supabase/functions/**'
 
