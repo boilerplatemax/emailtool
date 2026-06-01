@@ -42,7 +42,11 @@ async function sendEmail(params: {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        personalizations: [{ to: [{ email: params.to.email, ...(params.to.name ? { name: params.to.name } : {}) }] }],
+        personalizations: [{
+          to:  [{ email: params.to.email, ...(params.to.name ? { name: params.to.name } : {}) }],
+          // BCC the sender so a copy lands in their mailbox (e.g. the "Sent" view).
+          bcc: [{ email: params.from.email, ...(params.from.name ? { name: params.from.name } : {}) }],
+        }],
         from: { email: params.from.email, ...(params.from.name ? { name: params.from.name } : {}) },
         subject: params.subject,
         content: [{ type: 'text/plain', value: params.text }],
