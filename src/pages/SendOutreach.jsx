@@ -13,12 +13,19 @@ const REQUIRED_COLS = ['union', 'local', 'email', 'province', 'subject', 'body']
 const OPTIONAL_COLS = ['first name', 'last name']
 const ALL_COLS      = [...REQUIRED_COLS, ...OPTIONAL_COLS]
 
+// Fields a row must have populated to actually be sent (recipient + content).
+const REQUIRED_FIELDS = ['union_name', 'local', 'email', 'province', 'subject', 'body']
+const FIELD_LABELS    = {
+  union_name: 'union', local: 'local', email: 'email',
+  province: 'province', subject: 'subject', body: 'body',
+}
+
 function normaliseRow(r) {
   const out = {}
   for (const [k, v] of Object.entries(r)) {
     out[k.trim().toLowerCase()] = typeof v === 'string' ? v.trim() : v
   }
-  return {
+  const row = {
     union_name: out.union              || '',
     local:      out.local              || '',
     email:      (out.email             || '').toLowerCase(),
@@ -28,6 +35,10 @@ function normaliseRow(r) {
     subject:    out.subject            || '',
     body:       out.body               || '',
   }
+  // Track which required fields are missing so the row can still be previewed
+  // (just flagged as not sendable) rather than silently dropped.
+  const missing = REQUIRED_FIELDS.filter(f => !row[f])
+  return { ...row, _missing: missing, _sendable: missing.length === 0 }
 }
 
 function parseCsv(file) {
@@ -107,21 +118,24 @@ export default function SendOutreach() {
       return
     }
 
+    // Keep every non-empty row so all emails are previewable. Rows missing
+    // required fields are flagged (_sendable) and skipped at send time.
     const rows = parsed.data
       .map(normaliseRow)
-      .filter(r => r.union_name && r.local && r.email && r.province && r.subject && r.body)
+      .filter(r => r.union_name || r.local || r.email || r.subject || r.body)
 
     setParsedRows(rows)
   }
 
   async function handleSend() {
-    if (!parsedRows.length || !sender.email) return
+    const sendable = parsedRows.filter(r => r._sendable)
+    if (!sendable.length || !sender.email) return
     setLoading(true)
     setResult(null)
     try {
       const res = await sendOutreach({
         filename:       file.name,
-        rows:           parsedRows,
+        rows:           sendable.map(({ _missing, _sendable, ...r }) => r),
         senderEmail:    sender.email,
         senderName:     sender.name,
         staggerMinutes: stagger ? Math.max(0.1, Number(staggerMins)) : undefined,
@@ -142,7 +156,8 @@ export default function SendOutreach() {
     setResult(null)
   }
 
-  const previewRows = parsedRows.slice(0, 6)
+  const sendableRows    = parsedRows.filter(r => r._sendable)
+  const unsendableCount = parsedRows.length - sendableRows.length
 
   return (
     <div className="flex flex-col h-full">
@@ -207,29 +222,57 @@ export default function SendOutreach() {
                 <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                   <h2 className="text-sm font-semibold text-slate-700">3 · Preview</h2>
                   <span className="text-xs text-slate-400">
-                    {parsedRows.length} rows · showing first 6
+                    {parsedRows.length} {parsedRows.length === 1 ? 'row' : 'rows'}
+                    {unsendableCount > 0 ? ` · ${sendableRows.length} sendable` : ''}
                   </span>
                 </div>
-                <div className="divide-y divide-slate-50">
-                  {previewRows.map((r, i) => (
-                    <div key={i} className="px-5 py-4">
-                      <div className="flex items-center gap-3 mb-1.5">
-                        <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-                          <span className="text-xs font-semibold text-indigo-700">
-                            {(r.first_name || r.email)[0].toUpperCase()}
-                          </span>
+
+                {unsendableCount > 0 && (
+                  <div className="flex items-start gap-2 bg-amber-50 border-b border-amber-100 px-5 py-3">
+                    <AlertCircle size={14} className="text-amber-500 shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-800">
+                      {unsendableCount} {unsendableCount === 1 ? 'row is' : 'rows are'} missing
+                      required fields (usually a recipient email) and will be skipped. They're
+                      shown below so you can review and complete them.
+                    </p>
+                  </div>
+                )}
+
+                <div className="divide-y divide-slate-50 max-h-[520px] overflow-y-auto">
+                  {parsedRows.map((r, i) => {
+                    const initial = ((r.first_name || r.email || r.union_name || '?').charAt(0) || '?').toUpperCase()
+                    const name    = r.first_name
+                      ? `${r.first_name} ${r.last_name}`.trim()
+                      : (r.email || 'No recipient email')
+                    return (
+                      <div key={i} className={`px-5 py-4 ${r._sendable ? '' : 'bg-amber-50/40'}`}>
+                        <div className="flex items-center gap-3 mb-1.5">
+                          <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${r._sendable ? 'bg-indigo-100' : 'bg-amber-100'}`}>
+                            <span className={`text-xs font-semibold ${r._sendable ? 'text-indigo-700' : 'text-amber-700'}`}>
+                              {initial}
+                            </span>
+                          </div>
+                          <div className="min-w-0">
+                            <span className={`text-sm font-medium ${r.email ? 'text-slate-800' : 'text-amber-700'}`}>{name}</span>
+                            <span className="text-xs text-slate-400 ml-2">
+                              {r.union_name} · {r.local}{r.province ? ` · ${r.province}` : ''}
+                            </span>
+                          </div>
                         </div>
-                        <div>
-                          <span className="text-sm font-medium text-slate-800">{r.first_name ? `${r.first_name} ${r.last_name}` : r.email}</span>
-                          <span className="text-xs text-slate-400 ml-2">
-                            {r.union_name} · {r.local}
-                          </span>
-                        </div>
+                        {!r._sendable && (
+                          <p className="text-xs text-amber-700 ml-10 mb-1">
+                            Missing {r._missing.map(f => FIELD_LABELS[f] || f).join(', ')} — will be skipped
+                          </p>
+                        )}
+                        <p className="text-xs font-medium text-slate-600 ml-10">
+                          {r.subject || <span className="italic text-slate-300">(no subject)</span>}
+                        </p>
+                        <p className="text-xs text-slate-500 ml-10 mt-1 whitespace-pre-line">
+                          {r.body || <span className="italic text-slate-300">(no body)</span>}
+                        </p>
                       </div>
-                      <p className="text-xs font-medium text-slate-600 ml-10">{r.subject}</p>
-                      <p className="text-xs text-slate-400 ml-10 truncate">{r.body}</p>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
 
@@ -263,7 +306,7 @@ export default function SendOutreach() {
                       className="w-24 border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-300"
                     />
                     <span className="text-xs text-slate-400">
-                      Est. total time: ~{Math.round(parsedRows.length * (staggerMins / 2))} min
+                      Est. total time: ~{Math.round(sendableRows.length * (staggerMins / 2))} min
                     </span>
                   </div>
                 )}
@@ -279,11 +322,11 @@ export default function SendOutreach() {
                 </button>
                 <button
                   onClick={handleSend}
-                  disabled={loading || !sender.email}
+                  disabled={loading || !sender.email || !sendableRows.length}
                   className="flex items-center gap-2 bg-indigo-600 text-white font-medium text-sm px-6 py-2.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {loading ? <Spinner size={15} className="text-white" /> : <Send size={15} />}
-                  {loading ? 'Sending…' : `Send ${parsedRows.length} emails`}
+                  {loading ? 'Sending…' : `Send ${sendableRows.length} ${sendableRows.length === 1 ? 'email' : 'emails'}`}
                 </button>
               </div>
             </>
