@@ -37,7 +37,37 @@ export interface SendResult {
 
 // ── Internal helpers ───────────────────────────────────────────
 
+/** Escape the five HTML-significant characters so user text renders literally. */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+/**
+ * Build a simple HTML version that mirrors the plain-text body.
+ *
+ * Blank lines become paragraph breaks, single newlines become <br>.
+ * No images — SendGrid injects the open-tracking pixel into this HTML
+ * automatically when open tracking is enabled.
+ */
+function textToHtml(text: string): string {
+  const paragraphs = escapeHtml(text)
+    .split(/\n{2,}/)
+    .map(block => `<p>${block.replace(/\n/g, '<br>')}</p>`)
+    .join('\n')
+  return `<!DOCTYPE html><html><body>${paragraphs}</body></html>`
+}
+
 function buildPayload(params: SendEmailParams) {
+  // Always send a multipart message: plain-text for compatibility plus an
+  // HTML part so SendGrid can inject its open-tracking pixel. When the caller
+  // doesn't supply HTML we derive it from the text. text/plain MUST come first.
+  const html = params.html ?? textToHtml(params.text)
+
   const payload: Record<string, unknown> = {
     personalizations: [
       {
@@ -51,8 +81,10 @@ function buildPayload(params: SendEmailParams) {
     subject: params.subject,
     content: [
       { type: 'text/plain', value: params.text },
-      ...(params.html ? [{ type: 'text/html', value: params.html }] : []),
+      { type: 'text/html',  value: html },
     ],
+    // Enable SendGrid open tracking for this message.
+    tracking_settings: { open_tracking: { enable: true } },
   }
 
   if (params.replyTo) {
